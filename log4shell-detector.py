@@ -2,26 +2,27 @@
 
 from __future__ import print_function
 
-__author__ = "Florian Roth"
-__version__ = "0.11.1"
-__date__ = "2021-12-15"
+__author__ = "Ramon Rivera"
+__version__ = "0.0.1"
+__date__ = "2022-2-2"
 
 import argparse
 import os
 import subprocess
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from collections import defaultdict
 
 import Log4ShellDetector.Log4ShellDetector as Log4ShellDetector
 
-LINUX_PATH_SKIPS_START = set(["/proc", "/dev", "/sys/kernel/debug", "/sys/kernel/slab", "/sys/devices", "/usr/src/linux"])
+LINUX_PATH_SKIPS_START = {"/proc", "/dev", "/sys/kernel/debug", "/sys/kernel/slab", "/sys/devices", "/usr/src/linux"}
+
 
 def evaluate_log_paths():
     paths = []
     if not args.silent: print("[.] Automatically evaluating the folders to which apps write logs ...")
     command = "lsof 2>/dev/null | grep '\\.log' | sed 's/.* \\//\\//g' | sort | uniq"
-    path_eval = subprocess.Popen(command,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    path_eval = subprocess.Popen(command, shell=True,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     output = path_eval.communicate()[0].splitlines()
     for o in output:
         path = os.path.dirname(o)
@@ -46,6 +47,7 @@ def evaluate_log_paths():
             print("[D] Adding PATH: %s" % path)
     return paths
 
+
 def check_log4j_used():
     checker_commands = [
         "ps aux | egrep '[l]og4j'",
@@ -54,9 +56,11 @@ def check_log4j_used():
         "grep -r --include *.[wj]ar \"JndiLookup.class\" / 2>&1 | grep matches",
     ]
     for checker_command in checker_commands:
-        if len(subprocess.Popen(checker_command,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT).communicate()[0].splitlines()) > 0:
+        if len(subprocess.Popen(checker_command, shell=True, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT).communicate()[0].splitlines()) > 0:
             return True
     return False
+
 
 if __name__ == '__main__':
 
@@ -64,22 +68,28 @@ if __name__ == '__main__':
     group = parser.add_mutually_exclusive_group()
     group.add_argument('-p', nargs='+', help='Path to scan', metavar='path', default='')
     group.add_argument('-f', nargs='+', help='File to scan', metavar='path', default='')
-    group.add_argument('--auto', action='store_true', help='Automatically evaluate locations to which logs get written and scan these folders recursively (new default if no path is given)')
+    group.add_argument('--auto', action='store_true', help='Automatically evaluate locations to which logs get written '
+                                                           'and scan these folders recursively '
+                                                           '(new default if no path is given)')
     parser.add_argument('-d', type=int, help='Maximum distance between each character', metavar='distance', default=40)
-    parser.add_argument('--quick', action='store_true', help="Skip log lines that don't contain a 2021 or 2022 time stamp")
+    parser.add_argument('--quick', action='store_true', help="Skip log lines that don't contain a "
+                                                             "2021 or 2022 time stamp")
     parser.add_argument('--debug', action='store_true', help='Debug output')
     parser.add_argument('--summary', action='store_true', help='Show summary only')
-    parser.add_argument('--check_usage', '-c',action='store_true', help='Check if log4j is being used before launching the scan')
+    parser.add_argument('--check_usage', '-c',action='store_true', help='Check if log4j is being used '
+                                                                        'before launching the scan')
     parser.add_argument('--silent', action='store_true', help='Silent Mode. Only output on matches and errors')
 
     args = parser.parse_args()
 
     if not args.silent:
-        print("     __             ____ ______       ____  ___      __          __          ")
-        print("    / /  ___  ___ _/ / // __/ /  ___ / / / / _ \\___ / /____ ____/ /____  ____")
-        print("   / /__/ _ \\/ _ `/_  _/\\ \\/ _ \\/ -_) / / / // / -_) __/ -_) __/ __/ _ \\/ __/")
-        print("  /____/\\___/\\_, / /_//___/_//_/\\__/_/_/ /____/\\__/\\__/\\__/\\__/\\__/\\___/_/ ")
-        print("            /___/                                                            ")
+        print(" _____                  _   _    _            _ _   _ ")
+        print("/ ____|                (_) | |  | |          | | | | |")
+        print("| |     ___   __ _ _   _ _  | |__| | ___  __ _| | |_| |__ ")
+        print("| |    / _ \ / _` | | | | | |  __  |/ _ \/ _` | | __| '_ \ ")
+        print(" | |___| (_) | (_| | |_| | | | |  | |  __/ (_| | | |_| | | |")
+        print(" \_____\___/ \__, |\__,_|_| |_|  |_|\___|\__,_|_|\__|_| |_|")
+        print("                | |                                       ")
         print(" ")
         print("  Version %s, %s" % (__version__, __author__))
 
@@ -88,7 +98,7 @@ if __name__ == '__main__':
         print("[.] Starting scan DATE: %s" % date_scan_start)
 
     if args.check_usage:
-        if check_log4j_used() == False:
+        if not check_log4j_used():
             if not args.silent:
                 print("[.] log4j is not being used in this system, exiting.")
             sys.exit(0)
@@ -118,7 +128,8 @@ if __name__ == '__main__':
         if not summary:
             for match in matches:
                 for line_number in matches[match]:
-                    print('[!] FILE: %s LINE_NUMBER: %s DEOBFUSCATED_STRING: %s LINE: %s' % (match, line_number, matches[match][line_number][1], matches[match][line_number][0]))
+                    print('[!] FILE: %s LINE_NUMBER: %s DEOBFUSCATED_STRING: %s LINE: %s' %
+                          (match, line_number, matches[match][line_number][1], matches[match][line_number][0]))
         # Result
         number_of_detections = 0
         number_of_files_with_detections = len(matches.keys())
@@ -126,11 +137,13 @@ if __name__ == '__main__':
             number_of_detections += len(matches[file_path].keys())
 
         if number_of_detections > 0:
-            print("[!] %d files with exploitation attempts detected in PATH: %s" % (number_of_files_with_detections, path))
+            print("[!] %d files with exploitation attempts detected in PATH: %s" % (number_of_files_with_detections,
+                                                                                    path))
             if summary:
                 for match in matches:
                     for line_number in matches[match]:
-                        print('[!] FILE: %s LINE_NUMBER: %d STRING: %s' % (match, line_number, matches[match][line_number][1]))
+                        print('[!] FILE: %s LINE_NUMBER: %d STRING: %s' % (match, line_number,
+                                                                           matches[match][line_number][1]))
         else:
             if not args.silent: print("[+] No files with exploitation attempts detected in path PATH: %s" % path)
         return number_of_detections
@@ -165,7 +178,8 @@ if __name__ == '__main__':
             auto_eval_paths = True
         # Parameter evaluation
         if len(paths) == 0 and not auto_eval_paths:
-            print("[W] Warning: You haven't selected a path (-p path) or automatic evaluation of log paths (--auto). Log4Shell-Detector will activate the automatic path evaluation (--auto) for your convenience.")
+            print("[W] Warning: You haven't selected a path (-p path) or automatic evaluation of log paths (--auto). "
+                  "Log4Shell-Detector will activate the automatic path evaluation (--auto) for your convenience.")
             auto_eval_paths = True
         # Automatic path evaluation
         if auto_eval_paths:
@@ -177,7 +191,7 @@ if __name__ == '__main__':
                 print("[E] Path %s doesn't exist" % path, file=sys.stderr)
                 continue
             if not args.silent: print("[.] Scanning FOLDER: %s ..." % path)
-            detections = scan_path(l4sd,path,args.summary)
+            detections = scan_path(l4sd, path, args.summary)
             all_detections += detections
 
     # Finish
@@ -191,5 +205,6 @@ if __name__ == '__main__':
         duration = date_scan_end - date_scan_start
         mins, secs = divmod(duration.total_seconds(), 60)
         hours, mins = divmod(mins, 60)
-        print("[.] Scan took the following time to complete DURATION: %d hours %d minutes %d seconds" % (hours, mins, secs))
+        print("[.] Scan took the following time to complete DURATION: %d hours %d minutes %d seconds"
+              % (hours, mins, secs))
 
